@@ -1,0 +1,60 @@
+services:
+
+    api:
+        hostname: fastapi
+        container_name: fastapi
+        build: 
+            context: ./api
+        environment:
+            FASTAPI_KEY: ${FASTAPI_KEY}
+            FASTAPI_DEBUG: ${FASTAPI_DEBUG}
+            POSTGRES_DSN: "postgresql://postgres:${POSTGRES_PASSWD}@psql:5432/${POSTGRES_DB}"
+        command: bash -c 'while !</dev/tcp/psql/5432; do sleep 1; done; uvicorn main:app --host 0.0.0.0'
+        ports:
+            - "8000:8000"
+        restart: always
+        depends_on:
+            - psql
+        networks:
+            - keenetik_network
+
+    loop:
+        hostname: loop
+        container_name: loop
+        build:
+            context: ./loop
+        environment:
+            FASTAPI_KEY: ${FASTAPI_KEY}
+            KEENETIC_IP: ${KEENETIC_IP}
+            KEENETIC_USER: ${KEENETIC_USER}
+            KEENETIC_PASSWD: ${KEENETIC_PASSWD}
+        restart: always
+        depends_on:
+            - api
+        networks:
+            - keenetik_network
+
+
+    psql:
+        image: postgres:15
+        hostname: psql
+        container_name: psql
+        restart: always
+        volumes:
+            - psql-data:/var/lib/postgresql/data/
+            - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+        ports:
+            - "5432:5432"
+        environment:
+            POSTGRES_PASSWORD: ${POSTGRES_PASSWD}
+            POSTGRES_DB: ${POSTGRES_DB}
+            TZ: Europe/Moscow
+        networks:
+            - keenetik_network
+
+volumes:
+    psql-data:
+
+networks:
+    keenetik_network:
+        driver: bridge
